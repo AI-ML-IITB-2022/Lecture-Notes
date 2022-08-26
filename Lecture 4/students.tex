@@ -1,0 +1,114 @@
+\documentclass[12pt]{article}
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{scribe}
+\usepackage{listings}
+\usepackage{dsfont}
+\Scribe{Sankalp, Shikhar, Ameeya, Tavva}
+\Lecturer{Abir De}
+\LectureNumber{4}
+\LectureDate{18/08/22}
+\LectureTitle{Introduction to Loss Functions}
+
+\lstset{style=mystyle}
+
+\begin{document}
+	\MakeScribeTop
+
+%#############################################################
+%#############################################################
+%#############################################################
+%#############################################################
+
+In this lecture we develop methods that evaluate how well machine learning models learn our data set. This is accomplished by means of {\em loss} functions. We see what entails in the design of such loss functions.
+
+\section{Motivation for Loss Functions}
+We study about loss function in a simple setting of classification which is defined as follows: 
+\subsection{Review of Classification Task}
+The general classification task can be described as follows :
+\paragraph{Classification Task :}Given a dataset $\{(x_i, y_i)\}$ where $x_i \in \mathbb{R}^d$ and $y \in \mathcal{Y}$, where d is dimension of the input features and $\mathcal{Y}$ is the target variables, our goal is to devise an algorithm that selects a hypothetsis $h \in H : \mathbb{R}^d \rightarrow \mathcal{Y}$,  So that given some unseen test case $x_j$ and the corresponding label $y_j$, $h(x_j) = y_j$. For example, in \verb|MNIST| image classification task, each $x_i \in \mathbb{R}^{28 \times 28}$ and $\mathcal{Y} = \{0, 1, \cdots 9\}$ are the class labels.\\
+\\
+However, in order to devise a good algorithm that selects the best hypothesis $h^{*} \in H$, the developer needs to know a more concrete metric which is used by the user to evaluate the algorithm on the test set. This metric which mathematically quantifies how well the algorithm models the data in any dataset is called a \textbf{Loss Function}.
+\subsection{Loss Minimization Task}
+Now that we are aware of the metric which is used by the user to evaluate the algorithm $H$ we try to model the classification task as a loss minimization task instead. The general classification task can thus be modelled by the following loss minimization task :\\
+\begin{align*}
+    h^{*} = \arg \min_{h \in H}\sum_{j=1}^{M}\mathds{1}(h(x_j) \neq y_j)
+\end{align*}
+Here $x_j$ is an image in the test dataset, M is the number of images in the test dataset and $\mathds{1}(\cdot)$ is the indicator function which is equal to $0$ if its argument is false and equals $1$ if the argument holds true. If we assume that (a) we could enumerate all the possible functions $H : \mathbb{R}^d \rightarrow Y$ and (b) the function that minimizes the value over training set also minimizes it over the test set we could obtain $h^{*}$ as follows :
+\begin{align*}
+    h^{*} = \arg \min_{h \in H}\sum_{i=1}^{D}\mathds{1}(h(x_i) \neq y_i)
+\end{align*}
+where $x_i$ are the images in the training dataset, $y_i$ are the corresponding labels and $D$ is the number of images in the training dataset. However, both our assumptions are clearly unreasonable. Most importantly it is not possible to enumerate all possible functions $H$ particularly when $H$ is an infinite set which is often the case. Therefore, we look for relaxations in the loss function in order to make the loss minimization task solvable. Some suitable relaxations for the loss function have been discussed in the next section.
+\section{Relaxation of Loss Function}
+In this section, we will try to look at the art of designing loss functions. We will look at, how we can arrive at a mathematically appealing loss function that models the classification problem in steps.\\
+In all the subsections below we will consider the classification problem where $\forall x_i \in X$, there exists a label $y_i \in \{-1,1\}$, over the training set.
+\subsection{Constant Hypothesis}
+While developing the loss function, one student suggested to use constant hypothesis. In other words, $H(x_i) = c$, where $c$ is a uniformly generated random number in the interval $[-1,1]$.\\
+The loss function optimization problem can then be written as,
+\begin{align*}
+    c^{*} = \arg\min_{c} \sum_{i=1}^{M}\mathds{1}(c \ne y_i)
+\end{align*}
+We do know that the point probability of a continuous distribution is $0$ whence $P(c=1)$ and $P(c=-1)$ are both zero. Hence, the loss function value is always $M$ in this case. We cannot do better if we stick to this model with uniform distribution. \\
+What if we choose the constant $c$ among the values $\{-1,1\}$. Let us denote $n_+$ to be the number of points in the training data set having labels as +1, and similarly denote $n_-$ to be the number of points in the training data set having labels as -1. The optimization problem is same as above, but constrained to the fact that $c \in \{-1,1\}$. It can be seen easily that if we take, $c = \max(n_+, n_-)$, the loss say $L$ is $\min(n_+, n_-)$. This is the minimum that we can get. This method is Majority Mode, since we took the hypothesis to be the mode in the training set data.
+\subsection{Linear Hypothesis with Indicator Cost}
+Lets see if we can do better by increasing the complexity of our hypothesis class $H$. We suppose, $h(x_i) = w^Tx_i+b$, where $w$ is the vector of parameters of the same dimensions as $x_i$ and $b$ is the bias parameter. Hence, we have the following task in hand,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{\arg\min} \sum_{i=1}^{M} \mathbb{I}(w^Tx_i+b \ne y_i)
+\end{align*}
+For brevity, let $L_1$ denote the minimum loss achieved by considering a constant hypothesis and $L_2$ denote the minimum loss achieved by considering a linear hypothesis, then it is guaranteed that $L_2 \leq L_1$. The reason is obvious as we are trying to search a larger space to fit the data. Hence, our Linear model is reducible to constant hypothesis model by taking $(w, b) = (\mathbf{0}, c)$. \\
+We can establish a generalized statement here. As model complexity increases, performance on the data used to build the model (training data) improves. However, performance on an independent set (validation data) may improve up to a point, then starts to get worse. This is called \textbf{overfitting}.\\
+Nevertheless, we have definitely done better as compared to  constant hypothesis.
+\subsection{Linear Hypothesis with Absolute Difference Cost}
+Another Loss function was suggested which takes the cost as the absolute value of the difference between hypothesis and the label value (Assuming that the labels are mapped to some subset of integers). In this case the optimization problem becomes,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{\arg\min} \sum_{i=1}^{M} |w^Tx_i+b - y_i| 
+\end{align*}
+But even this is not a good choice. $w^Tx_i + b$ takes values in $\mathbb{R}$ but $y_i \in \{-1,1\}$. A good loss function should act on predictions that are on the same scale as that of the ground truth targets which we allude to next. 
+
+\subsection{Linear Hypothesis with Sign and Indicator Cost}
+%We can try one more approach on this. 
+Instead of looking at the value of $w^Tx_i + b$, what if we look at it's sign. Hence, if $w^Tx_i+b > 0$, then the estimated label should be 1 and vice-versa (boundary condition can be included within any one of them). This gives us the following optimization problem,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{\arg\min} \sum_{i=1}^{M} \mathbb{I}(\text{sgn}(w^Tx_i+b) \ne y_i)
+\end{align*}
+where $\text{sgn}(.)$ denotes the signum function.
+\subsection{Linear Hypothesis with Sigmoid Mapping}
+While the above loss function is good, it is not conducive to design efficient search algorithms that find $h^*$ and is difficult to optimize. Nonetheless, the above loss function can still be used to test the performance of our trained models. 
+
+To make optimization convenient, we map $w^Tx_i+b$ that takes values in $\mathbb{R}$ to the interval $[-1,1]$. To do this, we can use the sigmoid activation function,
+\begin{align*}
+    f(x_i) = \frac{1}{1+e^{-(w^Tx_i + b)}}
+\end{align*}
+There's one downside to this, the sigmoid function doesn't map to $[0,1]$, instead it does to $(0,1)$. Hence, using the below optimization problem wouldn't make sense,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{arg\;min} \sum_{i=1}^{M} \mathbb{I}(f(x_i) \ne \frac{y_i+1}{2}) 
+\end{align*}
+One may be tempted to use the absolute difference squared cost, $|f(x_i) - \frac{y_i+1}{2}|^2$, which makes sense. The issue which we may incur due to this is a non-convex loss function of parameters. It may be difficult to converge to global minima in such cases.\\
+\newline
+
+There's a probabilistic approach to loss functions as well, which will be discussed in the upcoming lectures, but we will just state the result here,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{\arg\min} \sum_{i=1}^{M}\left [ -\left (\frac{y_i+1}{2}\right )\log(f(x_i))-\left (1-\frac{y_i+1}{2}\right )\log(1-f(x_i))\right ]
+\end{align*}
+
+We can also define the loss in the following manner. We will incur a loss if $f(x_i)>0.5$ and $y_i=-1$ OR $f(x_i) \le 0.5$ and $y_i = 1$. We can hence write the following optimization problem,
+\begin{align*}
+    \{w^{*}, b^{*}\} = \underset{w, b}{\arg\min} \sum_{i=1}^{M} \max \left (0, \left ( \frac{1}{2} - f(x_i)\right )y_i\right) 
+\end{align*}
+This kind of loss is inspired from the ReLU function which is defined as \\
+\begin{align}
+ \text{ReLU}(x) &=
+  \begin{cases}
+   0        & \text{if } x \leq 0 \\
+   x        & \text{otherwise}
+  \end{cases}
+ \end{align}
+%%%%%%%%%%% If you don't have citations then comment the lines below:
+%
+%\bibliographystyle{abbrv}           % if you need a bibliography
+%\bibliography{mybib}                % assuming yours is named mybib.bib
+
+
+%%%%%%%%%%% end of doc
+\end{document}
