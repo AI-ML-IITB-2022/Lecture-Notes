@@ -1,0 +1,468 @@
+\documentclass[12pt]{article}
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{scribe}
+\usepackage{listings}
+
+
+\Scribe{Group 29 and Group 30}
+\Lecturer{Abir De}
+\LectureNumber{14}
+\LectureDate{3rd October 2022}
+\LectureTitle{Kernel Methods}
+
+\lstset{style=mystyle}
+
+\begin{document}
+    \MakeScribeTop
+
+\section{Recap : SVM formulation}
+Recall the discussion of earlier classes 
+\begin{center}
+   \[w^{*}_{svm} = \frac{\sum_{i}^{|D|} \alpha_{i} y_{i} x_{i} }{2\lambda} \]
+\end{center}
+
+This is linear in $x$, and the $dim(x) = dim(w) < \infty$
+To generalise this, suppose we make it non-linear in x, but it's linear in some $\phi(x)$ which can be $\infty$-dimensional.   
+Previously the similarity mechanism involved $x_{i}^{T}x$. The new similarity mechanism uses the kernel 
+formulation $K(x_{i},x)$ for e.g $K(x_i,x) = e^{-||x_i-x||^{2}}$.
+Formally, this new "similarity measure" must have some properties, which are discussed later.
+
+
+
+
+\section{Mathematics}
+We continue with our discussion on kernel methods/tricks in this lecture with more rigorous \\mathematics.
+\subsection{Inner Product Space}
+An inner product space (over reals) is a vector space $\mathcal{V}$ and an inner product, which is a
+mapping
+\begin{center}
+    $\langle\cdot,\cdot\rangle:\mathcal{V}\times\mathcal{V}\to\mathcal{\boldsymbol{R}}$
+\end{center}
+that has the following properties $\forall x,y,z\in \mathcal{V}$ and $a,b \in \mathcal{\boldsymbol{R}}$:
+\begin{itemize}
+    \item Symmetry: $\langle x,y\rangle = \langle y,x \rangle$
+    \item Linearity: $\langle ax+by,z \rangle = a\langle x,z\rangle + b\langle y,z \rangle $
+    \item Positive-definiteness: $\langle x,x \rangle\geq 0$ and $\langle x,x \rangle=0 \iff x=0$
+\end{itemize}
+For an inner product space, we define norm as $\|x\|=\sqrt{\langle x,x \rangle}$
+\subsection{Hilbert Space}
+
+A \textit{Hilbert Space} is an inner product space that is complete and seperable with respect to the 
+norm defined by the inner product.A space is called complete if all Cauchy Sequences in the space converge.
+Examples of Hilbert spaces include :
+\begin{enumerate}
+    \item $\mathbb{R}^{n}$ is an Hilbert space for the Euclidean norm. The dot-product is defined as with $\langle a,b\rangle = a^Tb$, the vector dot product of a and b.
+    \item The space $l_{2}$ of square summable sequences, with inner product $\langle x,y \rangle = \sum_{i=0}^{\infty} x_{i}y_i$
+\end{enumerate}
+
+\vspace{2mm} %5mm vertical space
+\begin{definition}{Kernel}
+\newline
+Let $\mathcal{X}$ be a non-empty set. A function $K: \mathcal{X} \times \mathcal{X} \rightarrow \mathbb{R}$ is a kernel 
+if there exists a Hilbert space $\mathcal{H}$ and a feature map $\phi : \mathcal{X} \rightarrow \mathcal{H}$ such that
+$\forall x,x' \in \mathcal{X}$, 
+\[K(x,x') = \langle \phi(x), \phi(x') \rangle_{\mathcal{H}}\]
+\end{definition}
+\newline
+If we are given a function of two arguments, $K(x,x')$, the following can be used to determine if it is a valid kernel.
+\begin{enumerate}
+    \item Find a feature map. But this may not be obvious sometimes, and the feature map may not be unique.
+    \item Can use a direct property of the function which is positive definiteness. The following lemma gives a sufficient and necessary condition.
+\end{enumerate}
+
+% \begin{definition}{Positive definite functions}
+%     A symmetric function $K : \mathcal{X} \times \mathcal{X} \rightarrow \mathbb{R}$ is positive definite
+%     if $\forall n \ge 1, \forall(a_{1},\dots,a_{n}) \in \mathbb{R}^{n}, \forall(x_{1},\dots,x_{n}) \in \mathcal{X}^{n}$,
+%     \[\sum_{i = 1}^{n}\sum_{j = 1}^{n}a_{i} a_{j}K(x_{i},x_{j}) \ge 0 \]
+%     The function $K(\cdot,\cdot)$ is strictly positive definite if for mutually distinct $x_{i}$, the equality
+%     holds only when all the $a_{i}$ are zero.
+% \end{definition}
+\vspace{2mm} %5mm vertical space
+
+\begin{lemma}
+Let $\mathcal{H}$ be a Hilbert space, $\mathcal{X}$ a non-empty set and $\phi: \mathcal{X} \rightarrow \mathcal{H}$.
+A symmetric function $K : \mathcal{X} \times \mathcal{X} \rightarrow \mathbb{R}$ implements an inner product
+in $\mathcal{H}$ if and only if it is positive semidefinite; namely $\forall(x_{1},\dots,x_{n}) \in \mathcal{X}^{n}$, the Gram matrix
+$G_{i,j} = K(x_{i},x_{j})$, is a positive semidefinite matrix. 
+\end{lemma}
+\begin{proof}
+$\implies$ (If $K$ implements an inner product then the Gram matrix is positive semidefinite) 
+
+\begin{align*}
+\sum_{i = 1}^{n}\sum_{j = 1}^{n}a_{i} a_{j}K(x_{i},x_{j}) &= \sum_{i = 1}^{n}\sum_{j = 1}^{n} \langle a_{i} \phi(x_i), a_j \phi(x_j)\rangle_{\mathcal{H}} \\
+ &= ||\sum_{i=1}^{n} a_{i} \phi(x_{i}) ||_{\mathcal{H}}^{2} \ge 0
+\end{align*}
+
+$\impliedby$
+For this direction, define the space of functions over $\mathcal{X}$ as $\mathbb{R} = \{ f:\mathcal{X} \rightarrow  \mathbb{R}\}$
+For each $x \in \mathcal{X}$ let $\phi(x)$ be the function $x \mapsto K(\cdot,x)$. Define a vector space by taking all
+linear combinations of elements of the form $K(\cdot,x)$. Define an inner product on this vector space to be 
+\[ \langle \sum_{i}\alpha_i K(\cdot,x_i), \sum_j \beta_j K(\cdot,x'_j) \rangle  = \sum_{i,j} \alpha_i \beta_j K(x_i,x'_j)\]  
+
+This is a valid inner product since it is symmetric (because K is symmetric), it is linear, and it is positive definite.
+Clearly,
+\[\langle \phi(x), \phi(x')\rangle = \langle K(\cdot,x) ,K(\cdot,x') \rangle = K(x,x').\]
+\end{proof}
+
+
+\subsection{Projection Theorem \& Properties}
+\begin{theorem}
+Let $\mathcal{H}$ be a Hilbert space and $\mathcal{M}$ be a closed subspace of $\mathcal{H}$. Then for any $x\in\mathcal{H}$, there exists a unique $m_0\in\mathcal{M}$ for which
+\begin{center}
+    $\|x-m_0\|\leq \|x-m\| \forall m\in\mathcal{M}$
+\end{center}
+This $m_0$ is called the projection of $x$ onto $\mathcal{M}$. Furthermore, $m_0\in\mathcal{M}$ is the projection of $x$ onto $M$ iff
+\begin{center}
+    $x-m_0\perp \mathcal{M}$
+\end{center}
+\end{theorem}
+
+\begin{theorem}
+ Let $\mathcal{M}$ be a closed subspace of $\mathcal{H}$. For any $x\in\mathcal{H}$, let $m_0$ be the projection of $x$ onto $\mathcal{M}$. Then 
+ \begin{center}
+     $\|m_0\|\leq\|x\|$
+ \end{center}
+ with equality only when $m_0=x$.
+\end{theorem}
+
+
+
+\section{Generalised objective function}
+Consider 
+\begin{equation}
+    \label{loss_function}
+    \underset{w}{min} \; \; l (\{w^{T}\phi(x_{i})\}_{i \in D}, \{y_{i}\}_{i \in D} ) + \lambda R(||w||)
+\end{equation}
+
+where $l : \mathbb{R}^{|D|} \rightarrow \mathbb{R}$ is an arbitrary function and $R : \mathbb{R}_{+} \rightarrow \mathbb{R}$ is a monotonically non-decreasing function.
+
+\begin{theorem}{\textbf{Representer Theorem}} 
+
+Assume that $\phi$ is a mapping from $\mathcal{X}$ to a Hilbert space. Then, there exists a vector $\alpha \in \mathbb{R}^{|D|}$
+such that $w = \sum_{i = 1}^{|D|} \alpha_{i} \phi(x_{i})$ is an optimal solution of equation \ref{loss_function} 
+\end{theorem}
+\begin{proof}
+Let $w^{*}$ be an optimal solution of Equation \ref{loss_function}. Because $w^{*}$  is an
+element of a Hilbert space, we can rewrite$w^{*}$  as
+\[w* = \sum_{i=1}^{|D|} \alpha_{i} \phi(x_{i}) + u\]
+where $\langle u, \phi(x_i) \rangle = 0$ for all i. Set $w = w^{*} - u$. Clearly, $||w^{*}||^{2} = ||w||^{2}+ ||u||^{2} $,
+thus $||w|| < ||w^{*}||$. Since $R$ is non-decreasing we obtain that $R(||w||) < R(||w^{*}||)$.
+Additionally, for all i we have that
+\[\langle w, \phi(x_i) \rangle = \langle w^{*} - u, \phi(x_i ) \rangle = \langle w^{*} , \phi(x_i ) \rangle,\] 
+hence
+\[l (\{w^{T}\phi(x_{i})\}_{i \in D}, \{y_{i}\}_{i \in D} ) = l (\{{w^{*}}^{T}\phi(x_{i})\}_{i \in D}, \{y_{i}\}_{i \in D} )\]
+We have shown that the objective of Equation \ref{loss_function} at $w$ cannot be larger
+than the objective at $w^{*}$ and therefore $w$ is also an optimal solution. Since
+$w = \sum_{i=1}^{|D|} \alpha_i \phi(x_i)$ we conclude our proof.
+\end{proof}
+
+Form of f is 
+\begin{align*}
+    f(x) &= {w^{*}}^{T}\phi(x_{i})  \\
+        &= \sum_{i = 1}^{|D|} \alpha_{i} \phi^{T}(x_{i}) \phi(x)
+\end{align*}
+Here $\phi^{T}(x_{i}) \phi(x)$ is like a similarity measure
+If $\phi(\cdot)$ is $\infty$-dimensional, we can write it as 
+\[ f(x) =  \sum_{i = 1}^{|D|} \alpha_{i} \sum_{j=0}^{\infty} \phi(x_{i})[j] \phi(x)[j]\]
+Hence, if $\phi(\cdot)$ is $\infty$-dimensional, it is not feasible to code $w$ as it has the same 
+dimension as $\phi$. So, we try to represent the objective function in functional form or through the kernel formulation.
+
+\subsection{Objective in terms of Kernel}
+Writing $w = \sum_{j=1}^{|D|} \alpha_{j} \phi(x_j)$, we have that for all i
+\[\langle w, \phi(x_{i})\rangle = \langle \sum_{j=1}^{|D|} \alpha_{j} \phi(x_j),\phi(x_{i}\rangle = \sum_{j = 1}^{|D|} \alpha_j \langle \phi(x_j), \phi(x_i)\rangle .\]
+Similarly,
+\[ ||w||^{2}  = \langle \sum_{j=1}^{|D|} \alpha_{j} \phi(x_j), \sum_{j=1}^{|D|} \alpha_{j} \phi(x_j) \rangle =  \sum_{i,j = 1}^{|D|} \alpha_i \alpha_j \langle \phi(x_i), \phi(x_j)\rangle .\]
+
+Let $K(x,x') = \langle \phi(x), \phi(x') \rangle$ be a function that implements the kernel function
+with respect to the feature space.
+Hence, instead of solving Equation \ref{loss_function}, we can solve the equivalent problem
+\begin{equation}
+\underset{\alpha \in \mathbb{R}^{|D|}}{min}  l (\{\sum_{j=1}^{|D|}\alpha_j K(x_j,x_{i})\}_{i \in D}, \{y_{i}\}_{i \in D} ) + \lambda R(\sqrt{\sum_{i,j =1}^{|D|} \alpha_i \alpha_j K(x_{j},x_{i})})   
+\end{equation}
+
+\subsection{Objective in terms of functional form}
+\[f(x) = \sum_{i} \alpha_{i} K(x_{i},x)\]
+Function f forms a vector space
+\[f_{1}, f_{2} \in V \implies af_{1} + bf_{2} \in V\] 
+\[ 0 \in V, \text{ by putting  } \alpha_{i} = 0 \; \; \; \forall i  \]
+Now define an inner product 
+\begin{equation}
+    \label{ip}
+    {\langle f,g \rangle}_{H} = \sum \alpha_{i}^{f} \alpha_{j}^{g} K(x_{i},x_{j})
+\end{equation}
+
+From the properties of inner product space, for \ref{ip} to be true,
+$\sum_{i,j} \alpha_{i}\alpha_{j}K(x_{i},x_{j}) \ge 0$
+and 
+$ K(x_{i},x_{j}) = K(x_{j},x_{i}) \; \; \; \forall i,j$
+
+These are in accordance with the earlier lemma which we proved.
+
+% \[ ||w||^{2} = \sum_{i,j} \alpha_{i} \alpha_{j} \phi(x_{i})^{T}\phi(x_{i}) = \sum_{i,j}
+% \alpha_{i} \alpha_{j} K(x_{i},x_{j}) = \langle f,f \rangle = ||f||^{2}\]
+\begin{align*}
+    ||w||^{2} &= \langle w,w \rangle \\
+    &= \langle\sum_{i=1}^{|D|}\alpha_{i} \phi(x_{i}),\sum_{i=1}^{|D|} \alpha_{j}\phi(x_{j})  \rangle  = \sum_{i,j = 1}^{|D|} \alpha_{i} \alpha_{j} \langle \phi(x_{i})\phi(x_{j} \rangle \\
+    &= \sum_{i,j} \alpha_{i} \alpha_{j} K(x_{i},x_{j}) = \langle f,f \rangle \\
+    & = ||f||^{2}
+\end{align*}
+Hence, the objective function becomes 
+\[\underset{w}{min} \; \; l (\{f(x_{i})\}_{i \in D}, \{y_{i}\}_{i \in D} ) + \lambda R(||f||) \]
+
+
+
+
+
+
+
+\section{Kernel Matrix \& Prediction function}
+\subsection{Kernel Matrix}
+We define $k(x_i,x_j) = \langle\phi(x_i),\phi(x_j)\rangle$.
+\begin{definition}
+    We define the kernel matrix for a kernel k on a set $\{x_1,...,x_n\}$ is
+    \begin{center}
+        $K = (k(x_i,x_j))_{i,j} = \begin{pmatrix}
+            k(x_1,x_1) & \cdots & k(x_1,x_n)\\
+            \vdots & \ddots & \vdots\\
+            k(x_n,x_1) & \cdots & k(x_n,x_n)
+        \end{pmatrix}\in\mathcal{R}^{n\times n}$
+    \end{center}
+\end{definition}
+\subsection{Prediction Function}
+Consider the minimizer $w = \sum_{i=1}^n\alpha_i\phi(x_i)$ according to the representer theorem. Then for a given $x$, we define the prediction function as
+\begin{align*}
+    f(x) &= \langle w,\phi(x)\rangle\\
+         &= \sum_{i=1}^{n} \alpha_i \langle \phi(x_i),\phi(x)\rangle \\
+         &= \sum_{i=1}^n \alpha_ik(x_i,x)
+\end{align*}
+\section{Different forms of Objective Function}
+\subsection{In terms of Kernel Matrix and \boldsymbol{$\alpha$}}
+Consider $w = \sum_{i=1}^n\alpha_i\phi(x_i)$. Then we have for norm
+\begin{align*}
+    \|w\|^2 &= \sum_{i,j=1}^n \alpha_i\alpha_j k(x_i,x_j)\\
+            &= \alpha^TK\alpha
+\end{align*}
+Similarily, predictions on the training points have a particular simple form:
+\begin{align*}
+    \begin{pmatrix}
+        f(x_1)\\
+        \vdots\\
+        f(x_n)
+    \end{pmatrix} &= \begin{pmatrix}
+        \alpha_1k(x_1,x_1)+\cdots+\alpha_n k(x_1,x_n)\\
+        \vdots\\
+        \alpha_1k(x_n,x_1)+\cdots+\alpha_n k(x_n,x_n)
+    \end{pmatrix}\\
+    &= \begin{pmatrix}
+        k(x_1,x_1) & \cdots & k(x_1,x_n)\\
+        \vdots & \ddots & \vdots \\
+        k(x_n,x_1) & \cdots & k(x_n,x_n)
+    \end{pmatrix}\begin{pmatrix}
+        \alpha_1\\
+        \vdots\\
+        \alpha_n
+    \end{pmatrix}\\
+    &= K\alpha
+\end{align*}
+Hence our generalised objective function can be reduced to using the knowledge that minimizer lies in the span of $\phi(x_1),...,\phi(x_n)$
+\begin{center}
+    $\underset{\alpha\in\mathcal{R}^n}{\text{min}} R(\sqrt{\alpha^TK\alpha}) + L(K\alpha)$
+\end{center}
+This is the kernelized objective function
+\subsection{In terms of prediction function}
+Recall that $f(\cdot) = \sum_{i=1}^m \alpha_i k(\cdot,x_i)$. Now we define a dot product of $f$ and another function $g(\cdot)=\sum_i^{m'}\beta_j k(\cdot,x_j')$ as follows
+\begin{center}
+    $\langle f,g\rangle := \sum_{i}^m\sum_j^{m'}\alpha_i\beta_j k(x_i,x_{j}')$
+\end{center}
+Now we try to find the condition on kernel $k$, such that $f$ belongs to Hilbert space so that we can define norm of $f$.\\
+Symmetry can be seen as follows:
+\begin{center}
+    $\langle f,g\rangle = \sum_{j=1}^{m'}\beta_j f(x_j ') = \sum_{i=1}^m\alpha_i g(x_i)$
+\end{center}
+This implies $\langle f,g\rangle = \langle g,f \rangle$ if $k(x_i,x_j) = k(x_j,x_i)$.\\
+Positive definiteness can be seen as follows:
+\begin{center}
+    $\langle f,f\rangle = \sum_{i}\sum_{j}\alpha_i\alpha_j k(x_i,x_j)\geq 0$ $\forall\alpha_i,\alpha_j\in\mathcal{R}$
+\end{center}
+This property holds true when the kernel matrix $K$ is positive semi-definite.\\
+Similarly, linearity is also true without any further assumption on the kernel. Hence $\|f\|^2 = \langle f,f\rangle  = \sum_{i}\sum_{j}\alpha_i\alpha_j k(x_i,x_j) = \|w\|^2$. Hence we can substitute $\|w\|^2$ with $\|f\|^2$ with the given properties of $K$. Hence our generalised loss function becomes
+\begin{center}
+    $\underset{f}{\text{min}}  R(\|f\|) + L(f(x_1),f(x_2),...,f(x_n))$
+\end{center}
+Note: If $\forall x |f(x)|\leq M_x\|f\|_H$ then $\exists f(x)=\sum_{i}\alpha_ik(x_i,x)$
+\subsection{Need for such substitution}
+If $\phi(x)$ has a very large or $\infty$ dimension, it is impossible to code $w$ as it has the same dimension as $\psi(x)$. So we can either go with the kernel matrix or make our analysis on the prediction function, both of which are independent of the dimension of $\phi(x)$. This is a useful tool for analysing the correctness of RBF kernel where $\phi(x)$ is of infinite dimension.
+
+
+\section{Reproducing kernel Hilbert spaces}
+
+For a Hilbert space $\mathcal{H}$ of real-valued functions on $\mathcal{X}$, and for any point $x \in \mathcal{X}$, the evaluation functional at x is defined as the map $L_x: \mathcal{H} \mapsto \mathbb{R}$ such that for all functions $f \in \mathcal{H}$,
+
+\begin{align} 
+    L_x(f) = f(x). 
+\end{align}
+
+In this setting, $\mathcal{H}$ is called a reproducing kernel Hilbert space if for all $x \in \mathcal{X}$, $L_x$ is bounded, i.e. there is some finite constant M such that
+
+\begin{align}
+    |L_x(f)| = |f(x)| \leq M \| f \|_\mathcal{H}. \
+\end{align}
+
+(Equivalently, for all $x \in \mathcal{X}$, $L_x$ is continuous at any $f \in \mathcal{H}$.)
+
+% Where do kernels come into play? Invoking the Riesz representation theorem, for each $x \in \mathcal{X}$, there is some function $K_x \in \mathcal{H}$ such that
+
+% \[f(x) = L_x(f) = \langle f, K_x \rangle_\mathcal{H}\]
+
+% for all $f \in \mathcal{H}$. Since $K_x$ is itself a function in $\mathcal{H}$, for any $y \in \mathcal{X}$ we have
+
+% \[ K_x(y) = L_y (K_x) = \langle K_x, K_y \rangle_\mathcal{H} \]
+
+% We have thus stumbled upon a kernel! Define $K: \mathcal{X} \times \mathcal{X} \mapsto \mathbb{R}$ such that
+
+% \[K(x, y) = \langle K_x, K_y \rangle_\mathcal{H} \]
+
+% By our earlier definition, K is a kernel (We would have $\phi (x) = K_x$). K is called the reproducing kernel of $\mathcal{H}$ because of the “reproducing property”: the kernel “reproduces” the inner product $K(x, y) = \langle \phi(x), \phi(y) \rangle_\mathcal{H}$. 
+% This is also known as the “kernel trick” because we don’t have to apply the map $\phi$ to x and y and compute the inner product: we can apply the kernel function K directly.
+\section{Example problem}
+\subsection{Problem Statement}
+Consider the functions $h : \mathbb{N} \rightarrow [1 \dots m] $ and $\mathcal{E} : \mathbb{N} \rightarrow \pm 1$
+\[a^{h,\mathcal{E}}(x)[i] = \sum_{j \text{  s.t  } h(i) = j} \mathcal{E}(j)x_{j}\]
+Then prove that 
+\[ \underset{h,\mathcal{E} \sim \; \;\mathcal{U}(.)}{\mathbb{E}} [ \langle a^{h,\mathcal{E}}(x), a^{h,\mathcal{E}}(x')\rangle ] = \langle x,x' \rangle\]
+
+\subsection{Solution}
+
+\begin{center}
+\[ \underset{h,\mathcal{E} \sim \; \;\mathcal{U}(.)}{\mathbb{E}} [ \langle a^{h,\mathcal{E}}(x), a^{h,\mathcal{E}}(x')\rangle ] = \underset{h,\mathcal{E} \sim \; \;\mathcal{U}(.)}{\mathbb{E}} [\sum_{j;h(i) = j} \sum_{j';h(i) = j'}\mathcal{E}(j)\mathcal{E}(j') x_{j} x'_{j'}] \]
+\end{center}
+
+Note that since $h$ and $\mathcal{E}$ are sampled from uniform distributions, for $j \neq j'$ 
+
+\begin{center}
+$\mathbb{E}[\mathcal{E}(j)\mathcal{E}(j')] = 0 $\\ 
+
+and when $j = j'$, $\mathbb{E}[\mathcal{E}(j)\mathcal{E}(j)] = 1$
+\end{center}
+
+
+
+Therefore the expectation simplifies to 
+\[\underset{h,\mathcal{E} \sim \; \;\mathcal{U}(.)}{\mathbb{E}} [\sum_{j = j'} (1)*x_{j} x'_{j'} + 0]  = \mathbb{E} [\sum_{j} x(j)x'(j)] = \mathbb{E}[\langle x,x'\rangle] = \langle x,x' \rangle  \]
+
+
+
+
+
+
+
+\section{Mercer's Theorem}
+\begin{theorem}
+
+A "symmetric" function $k(x,x')$ can be expressed as an inner product
+\begin{center}
+    $k(x,x')=\langle\psi(x),\psi(x')\rangle$
+\end{center}
+for some $\psi$ if and only if $K$ (kernel matrix) is positive semi-definite (and symmetric).
+\end{theorem}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% \SECTION{HOME-WORK QUESTIONS}
+% \SUBSECTION{}
+% FOR ANY TWO SETS $A, B$, PROVE THAT $2^{|A\CAP B|}$ IS A KERNEL.
+% \BEGIN{PROOF}
+
+% ASSUMING $K(A_I,A_J) = 2^{ |A_I\CAP A_J| } $ WHERE $A_I,A_J \IN A_1,A_2,A_3,.....A_N $
+% .NOW, AFTER POPULATING THE KERNEL MATRIX, IT'S TRIVIAL TO OBSERVE THAT THE ENTRIES WOULD BE $\IN \MATHBB{R}$ AND SYMMETRIC.
+% ALSO LETS ASSUME THAT FOR ANY MATRIX \TEXTBF{X} $\IN \MATHBB{R}^N$ THE FOLLOWING CONDITION $X^TMX \GE 0$ \\ IS SATISFIED IF AND ONLY IF  ALL OF THE EIGEN VALUES OF THE MATRIX M ARE POSITIVE.\\
+
+% PROVING IT IN FIRST DIRECTION -\\ 
+
+% SHOWING THAT IF  $X^TMX>0$ $\FORALL$ VECTORS  X≠0  THEN  $\LAMBDA_I>0,∀I$ .
+% IF  $X^TMX>0$  HOLDS FOR ALL VECTORS, THEN IN PARTICULAR IT HOLDS FOR THE EIGENVECTORS. HENCE IF WE PLUG IN AN EIGENVECTOR WE GET:\\
+
+% $X^TMX=X^T(\LAMBDA X)=\LAMBDA X^TX=   \LAMBDA ∥X∥^2>0$ \\
+
+% SINCE WE ASSUMED THE QUADRATIC FORM IS POSITIVE THEN SINCE SQUARED NORMS ARE OBVIOUSLY POSITIVE THEN IT NEEDS THAT THE CURRENT EIGENVALUE IS ALSO POSITIVE. HENCE  $\LAMBDA>0$ .\\
+
+% PROVING IT IN FIRST DIRECTION -\\ 
+
+% SHOWING THAT IF  $\LAMBDA_I>0,∀I$  THEN  $X^TAX>0$  FOR ALL  X≠0 .
+
+% NOTICE THAT IF WE HAVE ANY VECTOR  X≠0  WE CAN ALWAYS JUST NORMALIZE IT TO GET \\
+% $X^=X∥X∥$  SUCH THAT $ ||X||^2=1$.\\
+
+% IT FOLLOWS FROM MIN-MAX THEOREM THAT FOR A SYMMETRIC  N×N  MATRIX A AND NORMALIZED VECTOR X, THAT:
+
+% $\LAMBDA_{MAX}\GLE X^TMX\GE\LAMBDA_{MIN}$ 
+
+% I.E. THE QUADRATIC FORM IS BOUNDED BY ITS LARGEST AND SMALLEST EIGENVALUES WRT TO NORMALIZED VECTORS X THAT SATISFY  $∥X∥^2=1$ . THE PROOF FOR THIS CAN BE FOUND HERE \\
+% {HTTPS://WWW.QUORA.COM/WHY-IS-X-T-A-X-BOUNDED-BY-THE-SMALLEST-AND-LARGEST-EIGENVALUES-FOR-ANY-UNIT-VECTORS-X-I-E-LAMBDA_-MAX-GEQ-X-T-A-X-GEQ-LAMBDA_-MIN}\\
+
+% SINCE WE ARE ASSUMING THAT ALL THE EIGENVALUES ARE POSITIVE THEN IT FOLLOWS THAT THE LOWER BOUND OF THE QUADRATIC FORM MUST ALSO BE POSITIVE (SINCE  ΛMIN>0 ). I.E.
+% \\
+% $X^TAX^\GE\LAMBDA_{MIN}>0$ 
+% \\
+% SO FAR WE FOUND THAT THE QUADRATIC FORM IS POSITIVE IF MULTIPLIED BY ANY NORMALIZED VECTOR  $\HAT{X}$ . HOWEVER, WE WANTED TO SHOW THAT IT HOLDS FOR ANY VECTOR, NOT ONLY NORMALIZED VECTORS. FOR THIS JUST EXPAND WHAT A NORMALIZED VECTOR MEANS IN THE INEQUALITY ABOVE TO GET:\\
+
+% $X^T∥X∥MX∥X∥=1∥X∥^2^XTMX\GE\LAMBDA_{MIN}>0 $\\
+
+% MULTIPLYING THROUGH BY  $∥X∥^2$  YIELDS THE DESIRED RESULT:\\
+
+% $XTAX≥∥X∥2ΛMIN>0 $
+% \\
+% QED
+
+% NOW REPRESENTING OF THE FORM \TEXTBF{X} = $X^T\LAMBDA X$ WHERE $\LAMBDA$ IS THE EIGEN VALUE MATRIX OF \TEXTBF{M} \\
+% NOW ACCORDING TO THE STATEMENT OF THE \TEXTBF{MERCER'S THEOREM} USING K($A_I,B_J)$ AS THE KERNEL MATRIX AND HENCE THE FUNCTION K IS A KERNEL.
+% \END{PROOF}
+% \SUBSECTION{}
+% CONSIDER $H:\MATHCAL{N}\TO [1,...,M]$ AND $\ZETA:\MATHCAL{N}\TO \{-1,+1\}$.\\
+% DEFINE $A^{H,\ZETA}(X)[I] = \UNDERSET{J\IN\{T|H(T)=I\}}{\SUM}\ZETA(J)X_J$ WHERE $X$ CAN BE A VECTOR OF INFINITE DIMENSIONS. \\
+% PROVE THAT $E[\LANGLE A^{H,\ZETA}(X),A^{H,\ZETA}(X')\RANGLE] = \LANGLE X,X'\RANGLE$
+% \BEGIN{PROOF}
+    
+% \END{PROOF}
+% \SUBSECTION{}
+% FIND THE VARIANCE OF $\LANGLE A^{H,\ZETA}(X),A^{H,\ZETA}(X')\RANGLE$, WITH THE NOTATIONS SAME AS DESCRIBED IN 5.2
+% \BEGIN{PROOF}
+    
+% \END{PROOF}
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
