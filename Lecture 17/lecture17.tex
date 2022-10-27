@@ -1,0 +1,191 @@
+\documentclass[12pt]{article}
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{scribe}
+\usepackage{listings}
+
+\Scribe{Dhananjay, Shrey, Naman, Anushka, Ankshitha}
+\Lecturer{Abir De}
+\LectureNumber{17}
+\LectureDate{15th October, 2022}
+\LectureTitle{Regression}
+
+\lstset{style=mystyle}
+
+\begin{document}
+\MakeScribeTop
+
+In previous classes, we have discussed about Gaussian Process Regression and K-means clustering. Now we will be seeing how Gaussian Process Regression and Linear Regression are related, and also combining Clustering with Gaussian Process.
+
+\section{Gaussian Process Regression}
+
+\subsection{Purpose of GP}
+Consider training dataset of the form $\mathcal{D} = \{(\mathbf{x_i}, y_i)_{i=1}^N\}$ with small number of samples, where input is of dimension $d$. Linear Regression model cannot fit exactly on this dataset unless $N \xrightarrow[]{} \infty$. On the other hand Gaussian Process Regression tries to interpolate on the dataset.
+
+\subsection{Linear Regression to GP}
+Consider LR model on dataset defined above. Assuming no regularisation in loss, prediction $\hat{y}$ for input $\mathbf{\hat{x}}$ will be:
+\begin{align}
+    \hat{y} = \mathbf{\hat{x}^T} (\sum_{i=1}^N \mathbf{x_i x_i^T})^{-1} \sum_{i=1}^N\mathbf{x_i}y_i
+\end{align}
+
+Note that $\sum_{i=1}^N \mathbf{x_i x_i^T}$ is a $d\times d$ matrix. In above model, if input is from training dataset i.e. $\mathbf{\hat{x}=x_i}$, then it's possible that $\hat{y} \neq y_i$. 
+
+Let us try different construction using following kernel $K(X,X)$ for prediction of $\hat{y}$. Let $X = [\mathbf{x_1} \cdots \mathbf{x_N}]$ (usually design matrix is taken as transpose of this, our choice is deliberate here), $\mathbf{y} = [y_1 \cdots y_n]^T$, consider:
+\[
+    K(X,X) = \begin{bmatrix}
+            \mathbf{x_1^T}\\
+            \vdots \\
+            \mathbf{x_N^T}
+        \end{bmatrix}
+        \begin{bmatrix}
+            \mathbf{x_1} & \cdots & \mathbf{x_N}
+        \end{bmatrix}
+\]
+\[
+    K(X,X) = \begin{bmatrix}
+            \mathbf{x_1^Tx_1} & \cdots & \mathbf{x_1^Tx_N}\\
+            \vdots  & \ddots & \vdots \\
+            \mathbf{x_N^Tx_1} & \cdots & \mathbf{x_N^Tx_N}
+        \end{bmatrix}
+\]
+
+Note that $K(X,X)$ is $N\times N$ matrix. Now, $\hat{y}$ in terms of $K$ will be: 
+\begin{align}
+    \hat{y} = K(\mathbf{\hat{x}}, X) K(X,X)^{-1}\mathbf{y}
+\end{align}
+
+Consider following derivation for above equation:
+\begin{align*}
+      \hat{y} &= \mathbf{\hat{x}^T} (\sum_{i=1}^N \mathbf{x_i x_i^T})^{-1} \sum_{i=1}^N\mathbf{x_i}y_i \\
+      \hat{y} &= \mathbf{\hat{x}^T} (XX^T)^{-1} X \mathbf{y}\\
+      \hat{y} &= \mathbf{\hat{x}^T} X (X^TX)^{-1} \mathbf{y} \\
+      \hat{y} &= K(\mathbf{\hat{x}}, X) K(X,X)^{-1} \mathbf{y}
+\end{align*}
+
+Note that, in above formula, if we put $\hat{x} = x_i$, we will get $\hat{y} = y_i$, this can be easily proved by giving complete training set as input:
+$$\mathbf{\hat{y}} = K(X,X)K(X,X)^{-1} \mathbf{y} = \mathbf{y}$$
+So does this mean that LR can always interpolate too? Actually no, since there is a flaw in above derivation. 
+
+\paragraph{What went wrong?}In step 2, we have inverse of $XX^T$, which is $d \times d$ matrix, and in step 3, we have inverse of $X^TX$, which is $N \times N$ matrix, inverse of both of this may not exist at same time without regularizer.
+
+What is the physical inference of inverse of $K(X,X)$ existing? LR will memorize each data point in training dataset, error will be zero for each point if there is no regularizer, it will overfit exactly.
+
+There are some conditions under which inverse will exist without regularizer, it will be when $d$ is very large $(d \xrightarrow[]{} \infty)$, this means that capacity of model is very high to memorize every point, LR will be exactly same as GP. If $d < N$, then LR may not interpolate without regularizer.
+
+\paragraph{Exercise} Linear Regression without regularizer on $\infty$ space is equivalent to GP or equivalently inverse of $K(X,X)$ will exist if $d \xrightarrow[]{} \infty$
+
+\paragraph{Solution} $K(X,X) = X^TX$, where $X$ is $d \times N$ matrix. When $d \xrightarrow[]{} \infty$ rank of $X$ will be $N$ as we will be able to find $N$ independent rows in $X$ with very high probability. This will lead to rank of $K(X,X)$ to be $N$ and since $K(X,X)$ is $N \times N$, it's inverse will exist.
+
+\section{Regularized Linear Regression to GP}
+
+Recall that solution of regularized LR (assuming bias is handled by augmented feature vector) is:
+\begin{align}
+    \mathbf{w^*} = (XX^T+ \lambda I )^{-1}X \mathbf{y}
+\end{align}
+In non-Bayesian setting, above expression comes from minimizing ridge regression loss function while in Bayesian setting (assuming Gaussian noise), above expression comes from \textit{maximum a posteriori} (MAP) estimate of $\mathbf{w}$ given training dataset i.e. $Pr(\mathbf{w} | X, \mathbf{y})$.
+
+\subsection{Posterior of weights using LR}
+We will review the Bayesian analysis of Linear Regression model with Gaussian noise.
+$$y = \mathbf{x^Tw} + \epsilon $$
+Assuming $\epsilon \sim \mathcal{N}(0,\sigma^{2})$, likelihood is given by :
+\begin{align}
+    Pr(\textbf{y}|X,\textbf{w}) &= \prod_{i=1}^{N} p(y_i|\mathbf{x_i,w}) = \prod_{i=1}^{n} {\frac{1}{\sqrt{2\pi}\sigma} \exp(-\frac{(y_i - \mathbf{x_i^Tw})^2}{2\sigma^2})} \nonumber \\
+    &= \mathcal{N}(X^T\mathbf{w}, \sigma^2 I)
+\end{align}
+
+To find out Posterior of $\mathbf{w}$, in Bayesian formalism, we also need prior on $\mathbf{w}$. We assume following prior with covariance matrix $\Sigma_p$:
+$$\mathbf{w} \sim \mathcal{N}(\mathbf{0}, \Sigma_p)$$
+Using Bayes' rule:
+\begin{align}
+    Posterior &= \frac{Likelihood \times Prior}{Marginal Likelihood} \nonumber \\
+    Pr(\mathbf{w}| X, \mathbf{y}) &= \frac{Pr(\mathbf{y}| X, \mathbf{w}) Pr(\mathbf{w})}{Pr(\mathbf{y}|X)} \nonumber
+\end{align}
+Where denominator is independent of $\mathbf{w}$. This leads to following:
+\begin{align}
+    Pr(\mathbf{w} | X, \mathbf{y}) &\propto \exp(- \frac{1}{2\sigma^2}(\mathbf{y}-X^T\mathbf{w})^T (\mathbf{y}-X^T\mathbf{w})) \exp(-\frac{1}{2}\mathbf{w}^T\Sigma_p^{-1}\mathbf{w}) \nonumber \\
+    &\propto \exp(-\frac{1}{2}(\mathbf{w-\Bar{w}})^T (\frac{1}{\sigma^2}XX^T + \Sigma_p^{-1}) (\mathbf{w-\Bar{w}})) \nonumber \\
+\end{align}
+where $\mathbf{\Bar{w}} = (XX^T + \sigma^2\Sigma^{-1}_p)^{-1}X\mathbf{y}$
+\begin{align}
+    Pr(\mathbf{w} | X, \mathbf{y}) & \sim \mathcal{N}(\mathbf{\Bar{w}}, A^{-1})
+    \label{eqn:post_w}
+\end{align}
+where $A = \sigma^{-2} XX^T + \Sigma_p^{-1}$. MAP estimate from this posterior distribution comes out to be $\mathbf{\Bar{w}}$. So prediction $\hat{y}$ for input $\mathbf{\hat{x}}$ in LR is:
+\begin{align}
+    \hat{y} &= \mathbf{\hat{x}}^T \mathbf{\Bar{w}} \nonumber \\
+    \hat{y} &=  \mathbf{\hat{x}}^T (XX^T + \sigma^2\Sigma^{-1}_p)^{-1}X\mathbf{y}
+\end{align}
+\paragraph{Note} To work in higher dimensions, we need to replace $\mathbf{x}$ with $\phi(\mathbf{x})$ in above expressions where $\phi$ is a mapping from $d$-dimensional feature space to some higher dimensional feature space \cite{rasmussen}.
+
+\subsection{Inference of $\lambda$ in LR}   
+$\lambda$ prevents over-fitting in cases when $d$ is comparable to $N$ or $N$ is small. To be precise, on comparing $\mathbf{w^*}$ and $\mathbf{\Bar{w}}$, we get $\lambda I = \sigma^2 \Sigma_p^{-1}$, which indicates that, $\lambda$ is a measure of prior of $\mathbf{w}$ and noise. 
+\begin{align}
+    \Sigma_p^{-1} = \lambda I / \sigma^2
+\end{align}
+This leads to various conclusions like: 
+
+If $\lambda = 0$, then we do not have any prior on $\mathbf{w}$ because $\Sigma_p$ becomes infinity.
+
+If $N \xrightarrow{} \infty$, posterior of $\mathbf{w}$ becomes degenerate, having spike around $\mathbf{\Bar{w}}$ because $A$ will tend to infinity (due to $XX^T$), so $A^{-1}$ i.e. covariance of $\mathbf{w}$ will be zero.
+
+\subsection{Posterior of weights using GP}
+Gaussian Process Regression gives distribution of $f_* = f(\mathbf{x_*}) = \mathbf{x_*^T w}$ as: 
+\begin{align}
+    Pr(f_*| \mathbf{x_*}, X, \mathbf{y}) = \mathcal{N} ( \mathbf{k_*}^T(K+\sigma^2 I)^{-1}\mathbf{y}, k(\mathbf{x_*, x_*})- \mathbf{k_*}^T(K+\sigma^2 I)^{-1}\mathbf{k_*} )
+\end{align}
+where $k(.,.)$ is kernel function, $K(X,X_*)$ denotes $N \times N_*$ matrix of co-variances evaluated for every pair and $\mathbf{k_*}$ denotes the vector of co-variances between the
+test point and the $N$ training points. We can get this expression through function-space view as described in \cite{rasmussen}.
+\paragraph{Note} Mean prediction is a linear combination of observations $\mathbf{y}$, this is sometimes referred to as a linear predictor. Another way to look at this equation is to see it as a linear combination of $N$ kernel functions, each one centered on a training point, by writing
+\begin{align}
+    \Bar{f_*} = \sum_{i=1}^N \alpha_i k(\mathbf{x_i, x_*})
+\end{align}
+where $\mathbf{\alpha} = (K+\sigma^2I)^{-1} \mathbf{y}$.
+
+\paragraph{} Now we want to compute posterior for weights i.e. $Pr(\mathbf{w}| X, \mathbf{y})$ using Gaussian Process Regression. But GPR gives us $Pr(\mathbf{x_*^Tw} | \mathbf{x_*}, X, \mathbf{y})$. To obtained desired results, we can have $\mathbf{x_*} \in\{ (\mathbf{1_i})_{i=1}^d\}$ where $\mathbf{1_i}$ is $d \times 1$ vector with all entries $0$ except $i^{th}$ entry which is $1$. For $\mathbf{x_*} = \mathbf{1_i}$, we will get distribution for $w_i$. We can do the above evaluation in vectorized form also by giving input as $I_d$ which is Identity matrix of size $d \times d$ (some manipulations must be done since input is changed from vector to matrix). Posterior of weights takes exact same form as equation \ref{eqn:post_w} with $\mathbf{\Bar{w}} = K(I_d, X) (K(X,X) + \sigma^2I)^{-1} \mathbf{y}$ for $K(X,X) = X^TX$ and $\lambda = \sigma^2$. Prediction $\hat{y}$ using GPR is following which is same as that of LR:
+\begin{align}
+    \hat{y} &= \mathbf{\hat{x}}^T \mathbf{\Bar{w}} = \mathbf{\hat{x}}^T X(X^TX + \sigma^2I)^{-1}\mathbf{y} \nonumber \\
+    \hat{y} &=  \mathbf{\hat{x}}^T (XX^T + \lambda I)^{-1} X\mathbf{y}
+\end{align}
+
+\paragraph{Homework Exercise} Prove that predicted variance cannot be less than data variance in GPR.
+
+
+\subsection{Summarizing equivalence of LR and GP}
+\begin{center}
+\begin{tabular}{|c|c|} 
+    \hline
+    $d<N,\lambda=0$ & Linear Regression $\neq$ Gaussian Process Regression\\
+    \hline
+    $d<N,\lambda>0$ & Linear Regression $=$ Gaussian Process Regression\\ 
+    \hline
+    $d\xrightarrow[]{}\infty,\lambda=0$ & Linear Regression $=$ Gaussian Process Regression\\ 
+    \hline
+    $d\xrightarrow[]{}\infty,\lambda>0$ & Linear Regression $=$ Gaussian Process Regression\\
+    \hline
+\end{tabular}
+\end{center}
+Observation is that Linear Regression is equivalent to Gaussian Process Regression in all aspects except when $d < N, \lambda =0$. 
+
+
+\section{Is GP good enough?}
+
+If we have small training and test dataset, then should we go for Deep Learning or is GP good enough? Well, GP turns out be sufficient for such data sets, and DL is not required. 
+
+So, in which conditions GP will perform good/bad? GP works well if it gives low variance on test set for points close to training dataset points.
+
+What if GP gives high variance? Then GP has no confidence, it is as good as no prediction. Solution is to combine K-Means Clustering and GP to enhance GP.
+
+\subsection{K-means clustering}
+Consider cluster of data points, to classify a new point $\mathbf{x'}$, we find $\mathbf{x^*}$ such that $\|\mathbf{x'-x}\|$ is minimum across all $\mathbf{x_i}$ for $\mathbf{x^*}$. Predicted cluster $y'$ for $\mathbf{x'}$ will be $y(x^*)$.
+\paragraph{Note} Gaussian Process tries to induce based on labels (target values) but K-means clustering operates on features (example values).
+
+\subsection{Combining Gaussian Process with Clustering }
+We will start with fitting Gaussian process to each and every cluster and assign cluster through $\mathbf{x^*}$ using K-means clustering as described above. This will give high variance on $y$. Note that fitting GP means that finding Kernel because if kernel is fix, then there are no features in GP to train. 
+
+To summarise, for small number of points, rather than applying GP directly, we can do some operation and then perform GP on the dataset. We will be continuing discussion on this in further classes. 
+\newpage
+\bibliographystyle{abbrv}          
+\bibliography{mybib}              
+
+\end{document}
