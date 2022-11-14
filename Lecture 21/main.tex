@@ -1,0 +1,128 @@
+\documentclass[12pt]{article}
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{scribe}
+\usepackage{listings}
+
+\usepackage{url}
+
+\Scribe{Group 43}
+\Lecturer{Abir De}
+\LectureNumber{21}
+\LectureDate{7th November 2022}
+\LectureTitle{Generative Models}
+
+\lstset{style=mystyle}
+
+\begin{document}
+	\MakeScribeTop
+
+%#############################################################
+%#############################################################
+%#############################################################
+%#############################################################
+
+\section{Introduction}
+So far, we have looked at various discriminative algorithms. It is important to understand the difference between Discriminative models and Generative models. Discriminative models draw boundaries in the data space, while generative models try to model how data is placed throughout the space. A generative model focuses on explaining how the data was generated, while a discriminative model focuses on predicting the labels of the data.
+% Here's a citation~\cite{Kar84a}.
+
+\section{What to expect from a Generative Model}
+Let's say we are dealing with images. Given a set of images, $I = \{\mathbf{x_{1}, x_{2}, ....x_{N}}\}$, a Generative model tries to learn the underlying distribution from which the data might have been obtained. However, this is not an easy task. We also expect the Generative model to generate new images similar to a given image $\mathbf{x}$, i.e the model should be able to sample an output image $\mathbf{x'}$ using the conditional distribution given an input image $\mathbf{x}$. A few obvious challenges are: How do we approximate the underlying distribution? and how do we calculate the similarity between an input $\mathbf{x}$ and a generated output $\mathbf{x'}$?
+
+\section{Universal approximator of a distribution}
+\paragraph{Goal} To learn a function $P:\mathbb{R}^{d} \rightarrow [0, 1]$ satisfying $\int_{-\infty}^{\infty}{P(\mathbf{x})}d\mathbf{x} = 1$ and capable of capturing any distribution. For example, we would like $P_{\mathbf{\theta}}(.)$ to capture different distributions by changing the parameter $\theta$.
+\paragraph{A possible approach}
+For each $\mathbf{x}$, we can model the distribution as a Normal distribution with mean and covariance matrices taken as a function of $\theta$ and $\mathbf{x}$. We can model the mean and covariance as the output of some neural network. We can write 
+\begin{equation*}
+    P_{\theta}(\mathbf{x}) \sim \mathcal{N}(\mu_{\theta}(\mathbf{x}), \Sigma_{\theta}(\mathbf{x}))
+\end{equation*}
+The neural network should be able to learn $\mu_{\theta}(\mathbf{x})$ and $\Sigma_{\theta}(\mathbf{x})$ to enable the Normal distribution to capture the desired distribution.
+
+\paragraph{How do we train this model?}
+We can use the KL divergence to measure the similarity between two probability distributions. Here we will be comparing the empirically generated PDF and the PDF obtained by the Generative model.
+
+\paragraph{KL divergence} For distributions $P$ and $Q$ of a continuous Random variable, the KL divergence is defined to be
+\begin{equation*}
+    KL(P || Q) = \int_{-\infty}^{\infty} p(x)\log{\left(\frac{p(x)}{q(x)}\right)}dx
+\end{equation*} 
+It is a measure of how one probability distribution $P$ is different from a second, reference probability distribution $Q$. 
+
+
+\section{Generative procedure : Latent Variable Model}
+Let $\mathbf{x}$ denote the variable that represents our data and assume that $\mathbf{x}$ is generated from a latent variable $z$ that is not directly observed. Here, $z$ can be thought of an \textit{encoded} representation of $\mathbf{x}$ and is analogous to a seed for generation. We assume that we can easily sample the latent variables according to some probability density function $P(z)$ defined over some high dimensional space $\mathcal{Z}$. Then, say we have a family of deterministic functions $f(z; \theta)$, parameterized
+by a vector $\theta$ in some space $\Theta$, where $f : \mathcal{Z} \times \Theta$ . $f$ is deterministic, but
+if $z$ is random and $\theta$ is fixed, then $f(z; \theta)$ is a random variable in the space $\mathcal{X}$. We wish to optimize $\theta$ such that we can sample $z$ from $P(z)$ and, with
+high probability, $f(z; \theta)$ will be \textit{like} the $\mathbf{x}$’s in our dataset.\\
+To accommodate the notion of likelihood, we replace these deterministic functions with a probability distribution. The total probability of $\mathbf{x}$ being observed can then be expressed as 
+\begin{equation*}
+    P(\mathbf{x}) = \int{P(\mathbf{x}|z; \theta)P(z)dz}
+\end{equation*}
+For example, we can assume that both $z$ and $\mathbf{x}|z$ are distributed normally. Then the genrative process can be summarized as 
+\begin{align*}
+    z &\sim \mathcal{N}(\mathbf{0}, I)\\
+    \mathbf{x}|z &\sim \mathcal{N}(\mu_{\theta}(z), \Sigma_{\theta}(z))
+\end{align*}
+Here, $\mu_{\theta}(z)$ and $\Sigma_{\theta}(z)$ can be thought of as the output of some Neural Network which takes in $z$ as an input. \\
+The model should learn to increase $P(\mathbf{x})$ given some training data, i.e., the generative model should learn to make the training data more likely. 
+\paragraph{Training} Let's say we have some training data ${\mathbf{x_{1}}, \mathbf{x_{2}}, ..., \mathbf{x_{N}}}$. As mentioned above, we focus on maximizing the \textbf{Likelihood} of the training data. The likelihood of training data for a generative model can be written as
+\begin{align*}
+P(\mathbf{x_{1}}, \mathbf{x_{2}}, ..., \mathbf{x_{N}}) &= \prod_{i=1}^{N}P(\mathbf{x_{i}})\\
+&= \prod_{i=1}^{N} \int{P_{\theta}(\mathbf{x_{i}}|z)P(z)dz}
+\end{align*}
+So, we can write the log likelihood as
+\begin{align*}
+    LL(\mathbf{x_{1}}, \mathbf{x_{2}, ..., \mathbf{x_{N}}}) &= \sum_{i=1}^{N}\log\int{P_{\theta}(\mathbf{x_{i}}|z)P(z)dz}
+\end{align*}
+Using \textit{Jensen's} Inequality, 
+\begin{equation*}
+    \sum_{i=1}^{N}\log{\mathbb{E}_{z}[P_{\theta}(\mathbf{x_{i}}|z)]} \geq \sum_{i=1}^{N}\mathbb{E}_{z}[\log{P_{\theta}(\mathbf{x_{i}}|z)}]
+\end{equation*}
+So, we can finally write 
+\begin{equation*}
+    \sum_{i=1}^{N}\log\int{P_{\theta}(\mathbf{x_{i}}|z)P(z)dz} \geq \sum_{i=1}^{N}\int[\log{P_{\theta}(\mathbf{x_{i}}|z)]P(z)dz} = \sum_{i=1}^{N}\mathbb{E}_{z}[\log{P_{\theta}(\mathbf{x_{i}}|z)}]
+\end{equation*}
+Based on the above inequality, we can instead aim to maximise $\sum_{i=1}^{N}\mathbb{E}_{z}[\log{P_{\theta}(\mathbf{x_{i}}|z)}]$.\\
+We can compute $\mathbb{E}_{z}[\log{P_{\theta}(\mathbf{x_{i}}|z)}]$ approximately. For a given $i$, first obtain a large number of samples ${s_{i1}, s_{i2}, ..., s_{1S}}$ for $z$ and compute $\frac{1}{S}\sum_{j=1}^{S}\log P_{\theta}(\mathbf{x_{i}}|s_{ij})$.
+Thus we finally try to maximize 
+\begin{align*}
+    \sum_{i=1}^{N}\sum_{j=1}^{S}\frac{\log{P_{\theta}(\mathbf{x_{i}}|s_{ij})}}{S}
+\end{align*}
+
+\section{Conditional generation}
+So far we have seen the generation of a sample based on the training data without any conditions. Suppose, we now modify the problem : Given a sample $\mathbf{x^{*}}$, generate a sample $\mathbf{x}$ which is most similar to $\mathbf{x^{*}}$. In other words, we would like to maximize
+\begin{equation*}
+    P(\mathbf{x|x^{*}}) = \int{P(\mathbf{x}|z)P(z|\mathbf{x^{*}})dz}
+\end{equation*}
+The first quantity $P(\mathbf{x}|z)$ within the integral is known. The second part can be calculated as
+\begin{align*}
+    P(z|\mathbf{x^{*}}) &= \frac{P(\mathbf{x^{*}}|z)P(z)}{P(\mathbf{x^{*}})}\\
+                        &= \frac{P(\mathbf{x^{*}}|z)P(z)}{\int_{\mathcal{Z}}{P(\mathbf{x^{*}}|s)P(s)ds}}
+\end{align*}
+Thus, the required probability becomes
+\begin{equation*}
+    P(\mathbf{x}|\mathbf{x^{*}}) = \int{P(\mathbf{x}|z)\frac{P(\mathbf{x^{*}}|z)P(z)}{\int_{\mathcal{Z}}{P(\mathbf{x^{*}}|s)P(s)ds}}dz}
+\end{equation*}
+All quantities in the above equation can be computed using known information. However, it is expensive to compute it in general.\\
+Alternatively, we can model $P(z|\mathbf{x^{*}})$ separately. It means that we need a new function $Q_{\mathbf{x}}(z)$ which can take a value of $\mathbf{x}$ and give us a distribution over $z$ values that are most likely to produce $\mathbf{x}$. The space of $z$ values that are likely under $Q$ should be much smaller than the space of all $z$ values which were all previously equally likely under the prior $P(z)$. 
+\paragraph{Training $Q_{\mathbf{x}}(z)$} A separate neural network can be used to train $Q_{\mathbf{x}}(z)$. 
+Our objective can be to minimise the KL divergence between $Q_{\mathbf{x}}(z)$ and $P(z|\mathbf{x})$
+\begin{align*}
+    \mathrm{KL}(Q_{\mathbf{x}}(z), P(z|\mathbf{x})) &=  \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log{Q_{\mathbf{x}}(z)} - \mathbb{E}_{z \sim Q_{\mathbf{x}}}\left(\log\frac{P(\mathbf{x}|z)P(z)}{P(\mathbf{x})}\right)\\
+    &= \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log Q_{\mathbf{x}}(z) - \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log P(\mathbf{x}|z) - \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log P(z) + \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log P(\mathbf{x})\\
+    &= \mathrm{KL}(Q_{\mathbf{x}}(z), P(z)) - \mathbb{E}_{z \sim Q_{\mathbf{x}}}\log{P(\mathbf{x}|z)} + \mathbb{E}_{z \sim Q_{\mathbf{x}}}P(\mathbf{x})
+\end{align*}
+Here, our goal is to minimise the KL divergence between $Q_{\mathbf{x}}(z)$ and $P(z|\mathbf{x})$. Alternatively, we aim to maximize $\mathbb{E}_{z \sim Q_{\mathbf{x}}}\log{P(\mathbf{x}|z)} - \mathrm{KL}(Q_{\mathbf{x}}(z), P(z))$. The first part in this quantity aims to maximize the likelihood, whereas the second part tries to minimize the KL divergence between $Q_{\mathbf{x}}(z)$ and $P(z|\mathbf{x})$. The expressed we obtained here is also referred to as the Evidence Lower Bound(\textbf{ELBO}) function \cite{ELBO}. 
+Thus, our objective function will be $\sum_{i=1}^{N}\mathbb{E}_{z \sim Q_{\mathbf{x_{i}}}}\log{P(\mathbf{x_{i}}|z)} - \mathrm{KL}(Q_{\mathbf{x_{i}}}(z), P(z))$. We aim to maximize ELBO and identify the underlying parameters which give us the maximum.\\
+
+
+Please refer to \cite{VAET} and \cite{VAE} for more info on Variational Auto encoders
+
+
+% %%%%%%%%%%% If you don't have citations then comment the lines below:
+% %
+\bibliographystyle{abbrv}           % if you need a bibliography
+\bibliography{mybib}                % assuming yours is named mybib.bib
+
+%%%%%%%%%%% end of doc
+\end{document}
